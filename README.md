@@ -96,3 +96,9 @@ pytest
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+## Citation
+If you use GRHyMoLAP in your research, please cite:
+
+ Houénafa, S. E., Latella, M., Gohouede, L. C., & Sezen, C. (2026). GRHyMoLAP: A process-driven ODE catchment hydrology model inspired by GR4J and HyMoLAP approaches. *Journal of Hydrology*, 135597.
