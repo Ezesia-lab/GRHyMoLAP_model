@@ -27,9 +27,11 @@ DEFAULT_BOUNDS = [(0.5, 3.5), (0.01, 300.0), (0.0001, 5000.0), (0.0, 20)]
 
 # Default multi-start initial guesses for local optimizers.
 DEFAULT_INITIAL_GUESSES = [
-    [1.0, 8.0, 150.0, 0.1],
-    [0.6, 2.0, 120.0, 1.0],
-    [1.4, 15.0, 200.0, 0.5],
+        [1.0, 8, 150, 0.1],
+        [0.6, 2, 400, 1],
+        [1.4, 15, 300, 0.5],
+        [1., 10, 1000, 0.3],
+        [1.8, 5, 800, 0.5],
 ]
 
 # name -> scipy method / needs explicit bounds / is a global optimizer.
