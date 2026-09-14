@@ -84,7 +84,7 @@ model = GRHyMoLAP(custom_objective=my_objective, custom_optimizer=my_optimizer)
 
 ## Examples
 
-See `examples/A_CAMELS_FR_Basin.py` for a single-basin evaaluation.
+See `examples/A_CAMELS_FR_basin.py` for a single-basin evaaluation.
 
 ## Development
 
