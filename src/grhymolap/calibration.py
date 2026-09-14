@@ -37,7 +37,7 @@ DEFAULT_INITIAL_GUESSES = [
 # name -> scipy method / needs explicit bounds / is a global optimizer.
 OPTIMIZERS = {
     "nelder-mead": {
-        "scipy_method": "Nelder-Mead", "needs_bounds": False, "global": False,
+        "scipy_method": "Nelder-Mead", "needs_bounds": True, "global": False,
     },
     "l-bfgs-b": {
         "scipy_method": "L-BFGS-B", "needs_bounds": True, "global": False,
