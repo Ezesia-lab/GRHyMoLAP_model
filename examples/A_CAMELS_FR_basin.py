@@ -1,18 +1,14 @@
-# Import libraries
+## Import libraries
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 from scipy.optimize import minimize # USE IN THE MODEL CALIBRATION
-
-#import zipfile
-#import os
-
 import warnings
 warnings.filterwarnings('ignore')
 
 ## CAMELS-DATA : Got through aqua-fetch library
-pip install aqua-fetch
+pip install aqua-fetch  #Please, run this alone in a single cell above.
 
 import aqua_fetch
 print(aqua_fetch.__file__)
@@ -48,7 +44,6 @@ model.fit(P, PET, Q, dates=dates, train_ratio=0.6)
 print("Calibrated params (MU, LAMBDA, X1, gamma):", model.params_)
 print("Train scores:", model.train_scores_)
 print("Val scores:  ", model.val_scores_)
-
 
 #Plot
 dates = pd.date_range(
