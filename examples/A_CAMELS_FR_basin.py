@@ -1,3 +1,29 @@
+# Import libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.dates import DateFormatter
+from scipy.optimize import minimize # USE IN THE MODEL CALIBRATION
+
+#import zipfile
+#import os
+
+import warnings
+warnings.filterwarnings('ignore')
+
+## CAMELS-DATA : Got through aqua-fetch library
+pip install aqua-fetch
+
+import aqua_fetch
+print(aqua_fetch.__file__)
+
+from aqua_fetch import RainfallRunoff
+
+rr = RainfallRunoff("CAMELS_FR")
+
+meta, dataframe = rr.fetch()
+
+## GRHyMoLAP model
 !pip install git+https://github.com/Ezesia-lab/grhymolap.git
 
 from grhymolap import GRHyMoLAP
