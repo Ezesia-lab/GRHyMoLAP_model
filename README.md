@@ -82,18 +82,9 @@ def my_optimizer(objective_fn, initial_guesses, bounds, optimizer_kwargs):
 model = GRHyMoLAP(custom_objective=my_objective, custom_optimizer=my_optimizer)
 ```
 
-## Using it for ML hybridization
-
-The core model (`grhymolap.model.simulate_streamflow`) and every metric take
-and return plain NumPy arrays, with no framework dependency — wrap them in a
-PyTorch/JAX training loop, use `GRHyMoLAP.simulate()` output as a feature for
-a downstream model, or swap in a neural network for part of the pipeline via
-`custom_objective`/`custom_optimizer`, however fits your workflow.
-
 ## Examples
 
-See `examples/quickstart.py` for a single-basin walkthrough and
-`examples/multi_basin.py` for calibrating across many stations.
+See `examples/A_CAMELS_FR_Basin.py` for a single-basin evaaluation.
 
 ## Development
 
