@@ -1,19 +1,13 @@
 """
-Warm-up / train / validation period handling.
+Warm-up, calibration, and validation period handling.
 
-Supports two ways of specifying train/validation splits, either of
-which can be combined with a fixed warm-up length:
-
-- ratio-based: ``train_ratio=0.7`` uses the first 70% of the full series
-  for calibration, with the warm-up period included in this calibration
-  period but excluded from scoring
-- date-based: ``train_period=("1980-01-01", "2005-12-31")`` /
-  ``val_period=("2006-01-01", "2014-12-31")``, resolved against a
-  ``dates`` index.
+Calibration and validation periods are specified explicitly using dates.
+A fixed warm-up length is applied at the start of the calibration period.
+The warm-up period is simulated to allow internal states to settle but
+excluded from the calibration objective and performance scores.
 
 Both return boolean masks over the full series so the model can always
-be simulated continuously (state is never reset mid-series), while
-scoring only looks at the relevant mask.
+be simulated continuously (state is never reset between periods).
 """
 
 from __future__ import annotations
@@ -28,77 +22,84 @@ def resolve_periods(
     n: int,
     dates=None,
     n_warmup: int = 0,
-    train_ratio: float | None = None,
-    train_period: tuple | None = None,
-    val_period: tuple | None = None,
+    calibration_period: tuple | None = None,
+    validation_period: tuple | None = None,
 ):
-    """Compute warm-up / train / validation masks for a series of length n.
+    """Compute warm-up, calibration, and validation masks for a series.
 
     Parameters
     ----------
     n : int
         Length of the series.
-    dates : array-like of datetimes, optional
-        Required only if ``train_period``/``val_period`` are given.
+    dates : array-like of datetimes
+        Dates corresponding to the series. Required when
+        calibration_period or validation_period is specified.
     n_warmup : int, default 0
-        Leading timesteps within the calibration period that are
-        simulated to allow internal states to settle but excluded
-        from the calibration objective and performance scores.
-    train_ratio : float, optional
-        Fraction of the full series used for calibration. The warm-up
-        period is included within this calibration period but excluded
-        from the calibration objective and performance scores. The
-        remainder is used for validation.
-    train_period, val_period : (start, end), optional
-        Explicit date ranges (inclusive), resolved against ``dates``.
+        Leading timesteps of the calibration period that are simulated
+        to allow internal states to settle but excluded from the
+        calibration objective and performance scores.
+    calibration_period : (start, end), optional
+        Explicit calibration period, inclusive. Requires ``dates``.
+    validation_period : (start, end), optional
+        Explicit validation period, inclusive. Requires ``dates``.
 
     Returns
     -------
-    warmup_mask, train_mask, val_mask : np.ndarray[bool], length n
+    warmup_mask, calibration_mask, validation_mask : np.ndarray[bool], length n
     """
     warmup_mask = np.zeros(n, dtype=bool)
-    warmup_mask[: min(n_warmup, n)] = True
+    calibration_mask = np.zeros(n, dtype=bool)
+    validation_mask = np.zeros(n, dtype=bool)
 
-    if train_period is not None or val_period is not None:
-        if dates is None:
+    if calibration_period is None and validation_period is None:
+        raise ValueError(
+            "At least one of `calibration_period` or `validation_period` "
+            "must be specified."
+        )
+
+    if dates is None:
+        raise ValueError(
+            "`dates` is required to specify calibration_period or "
+            "validation_period."
+        )
+
+    idx = pd.DatetimeIndex(dates)
+
+    if len(idx) != n:
+        raise ValueError(
+            f"`dates` length ({len(idx)}) != series length ({n})."
+        )
+
+    if calibration_period is not None:
+        c0 = pd.Timestamp(calibration_period[0])
+        c1 = pd.Timestamp(calibration_period[1])
+        calibration_mask = np.asarray((idx >= c0) & (idx <= c1))
+
+        calibration_indices = np.flatnonzero(calibration_mask)
+
+        if len(calibration_indices) == 0:
             raise ValueError(
-                "`dates` is required to use train_period/val_period."
+                "The specified calibration_period does not overlap with "
+                "the provided dates."
             )
 
-        idx = pd.DatetimeIndex(dates)
+        n_warmup_actual = min(n_warmup, len(calibration_indices))
+        warmup_indices = calibration_indices[:n_warmup_actual]
+        warmup_mask[warmup_indices] = True
 
-        if len(idx) != n:
+    if validation_period is not None:
+        v0 = pd.Timestamp(validation_period[0])
+        v1 = pd.Timestamp(validation_period[1])
+        validation_mask = np.asarray((idx >= v0) & (idx <= v1))
+
+        if not validation_mask.any():
             raise ValueError(
-                f"`dates` length ({len(idx)}) != series length ({n})."
+                "The specified validation_period does not overlap with "
+                "the provided dates."
             )
 
-        train_mask = np.zeros(n, dtype=bool)
-        val_mask = np.zeros(n, dtype=bool)
-
-        if train_period is not None:
-            t0 = pd.Timestamp(train_period[0])
-            t1 = pd.Timestamp(train_period[1])
-            train_mask = np.asarray((idx >= t0) & (idx <= t1))
-
-        if val_period is not None:
-            v0 = pd.Timestamp(val_period[0])
-            v1 = pd.Timestamp(val_period[1])
-            val_mask = np.asarray((idx >= v0) & (idx <= v1))
-
-    else:
-        ratio = 0.7 if train_ratio is None else train_ratio
-
-        split = int(n * ratio)
-
-        train_mask = np.zeros(n, dtype=bool)
-        val_mask = np.zeros(n, dtype=bool)
-
-        train_mask[:split] = True
-        val_mask[split:] = True
-
-    # Warm-up is included in the calibration period but excluded
+    # Warm-up is simulated as part of the calibration period but excluded
     # from the calibration objective and performance scores.
-    train_mask &= ~warmup_mask
-    val_mask &= ~warmup_mask
+    calibration_mask &= ~warmup_mask
 
-    return warmup_mask, train_mask, val_mask
+    return warmup_mask, calibration_mask, validation_mask
