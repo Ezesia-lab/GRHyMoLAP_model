@@ -31,14 +31,18 @@ class GRHyMoLAP:
     Parameters
     ----------
     n_warmup : int, default 365
-        Timesteps at the start of the record excluded from scoring,
-        giving the internal soil-moisture state time to settle.
+        Timesteps at the start of the calibration period that are
+        simulated to allow the internal states to settle but excluded
+        from the calibration objective and performance scores.
+
     objective : str, default "nse"
         Calibration objective — one of "nse", "kge", "lognse", "rmse",
         "mae", "pbias".
+
     optimizer : str, default "nelder-mead"
         Calibration optimizer — one of "nelder-mead", "l-bfgs-b",
         "differential_evolution".
+
     bounds, initial_guesses, custom_objective, custom_optimizer,
     optimizer_kwargs :
         Passed straight through to
@@ -79,11 +83,14 @@ class GRHyMoLAP:
     ) -> "GRHyMoLAP":
         """Calibrate the model.
 
-        ``train_ratio`` (post-warmup ratio split) and
-        ``train_period``/``val_period`` (explicit date ranges,
-        requires ``dates``) are both supported — pass whichever fits
-        your workflow. Defaults to ``train_ratio=0.7`` if neither is
-        given.
+        ``train_ratio`` defines the calibration period as a fraction of
+        the full record. The warm-up period is included within this
+        calibration period but excluded from the calibration objective
+        and performance scores.
+
+        ``train_period``/``val_period`` can alternatively be used to
+        specify explicit date ranges, requiring ``dates``. If neither
+        is given, ``train_ratio=0.7`` is used.
         """
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
         n = len(Q)
