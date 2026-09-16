@@ -32,7 +32,7 @@ class GRHyMoLAP:
     ----------
     n_warmup : int, default 0
         Timesteps at the start of the record excluded from scoring.
-    objective : str, default "nse"
+    objective : str, default "rmse"
         Calibration objective — one of "nse", "kge", "lognse", "rmse",
         "mae", "pbias".
     optimizer : str, default "nelder-mead"
@@ -48,7 +48,7 @@ class GRHyMoLAP:
     def __init__(
         self,
         n_warmup: int = 0,
-        objective: str = "nse",
+        objective: str = "rmse",
         optimizer: str = "nelder-mead",
         bounds=None,
         initial_guesses=None,
