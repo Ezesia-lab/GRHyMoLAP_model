@@ -77,7 +77,7 @@ def resolve_periods(
             v1 = pd.Timestamp(val_period[1])
             val_mask = np.asarray((idx >= v0) & (idx <= v1))
     else:
-        ratio = 0.7 if train_ratio is None else train_ratio
+        ratio = 0.6 if train_ratio is None else train_ratio
         remaining = np.flatnonzero(~warmup_mask)
         split = int(len(remaining) * ratio)
         train_mask = np.zeros(n, dtype=bool)
