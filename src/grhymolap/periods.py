@@ -4,7 +4,9 @@ Warm-up / train / validation period handling.
 Supports two ways of specifying train/validation splits, either of
 which can be combined with a fixed warm-up length:
 
-- ratio-based: ``train_ratio=0.7`` splits the full series
+- ratio-based: ``train_ratio=0.7`` uses the first 70% of the full series
+  for calibration, with the warm-up period included in this calibration
+  period but excluded from scoring
 - date-based: ``train_period=("1980-01-01", "2005-12-31")`` /
   ``val_period=("2006-01-01", "2014-12-31")``, resolved against a
   ``dates`` index.
@@ -39,12 +41,14 @@ def resolve_periods(
     dates : array-like of datetimes, optional
         Required only if ``train_period``/``val_period`` are given.
     n_warmup : int, default 0
-        Leading timesteps excluded from both scoring masks (the model
-        still runs through them to let internal state settle).
+        Leading timesteps within the calibration period that are
+        simulated to allow internal states to settle but excluded
+        from the calibration objective and performance scores.
     train_ratio : float, optional
-        Fraction of the full series used for training, with the
-        warm-up period excluded from the training score.
-        The remainder is used for validation.
+        Fraction of the full series used for calibration. The warm-up
+        period is included within this calibration period but excluded
+        from the calibration objective and performance scores. The
+        remainder is used for validation.
     train_period, val_period : (start, end), optional
         Explicit date ranges (inclusive), resolved against ``dates``.
 
@@ -60,7 +64,9 @@ def resolve_periods(
             raise ValueError(
                 "`dates` is required to use train_period/val_period."
             )
+
         idx = pd.DatetimeIndex(dates)
+
         if len(idx) != n:
             raise ValueError(
                 f"`dates` length ({len(idx)}) != series length ({n})."
@@ -78,15 +84,20 @@ def resolve_periods(
             v0 = pd.Timestamp(val_period[0])
             v1 = pd.Timestamp(val_period[1])
             val_mask = np.asarray((idx >= v0) & (idx <= v1))
+
     else:
         ratio = 0.7 if train_ratio is None else train_ratio
+
         split = int(n * ratio)
+
         train_mask = np.zeros(n, dtype=bool)
         val_mask = np.zeros(n, dtype=bool)
+
         train_mask[:split] = True
         val_mask[split:] = True
 
-    # Warm-up always wins, regardless of how train/val were specified.
+    # Warm-up is included in the calibration period but excluded
+    # from the calibration objective and performance scores.
     train_mask &= ~warmup_mask
     val_mask &= ~warmup_mask
 
