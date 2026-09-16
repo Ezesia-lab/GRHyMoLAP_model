@@ -4,7 +4,7 @@ Warm-up / train / validation period handling.
 Supports two ways of specifying train/validation splits, either of
 which can be combined with a fixed warm-up length:
 
-- ratio-based: ``train_ratio=0.7`` splits whatever comes after warm-up
+- ratio-based: ``train_ratio=0.7`` splits the full series
 - date-based: ``train_period=("1980-01-01", "2005-12-31")`` /
   ``val_period=("2006-01-01", "2014-12-31")``, resolved against a
   ``dates`` index.
@@ -42,8 +42,9 @@ def resolve_periods(
         Leading timesteps excluded from both scoring masks (the model
         still runs through them to let internal state settle).
     train_ratio : float, optional
-        Fraction of the post-warmup series used for training, rest is
-        validation. Ignored if ``train_period``/``val_period`` given.
+        Fraction of the full series used for training, with the
+        warm-up period excluded from the training score.
+        The remainder is used for validation.
     train_period, val_period : (start, end), optional
         Explicit date ranges (inclusive), resolved against ``dates``.
 
@@ -72,20 +73,21 @@ def resolve_periods(
             t0 = pd.Timestamp(train_period[0])
             t1 = pd.Timestamp(train_period[1])
             train_mask = np.asarray((idx >= t0) & (idx <= t1))
+
         if val_period is not None:
             v0 = pd.Timestamp(val_period[0])
             v1 = pd.Timestamp(val_period[1])
             val_mask = np.asarray((idx >= v0) & (idx <= v1))
     else:
         ratio = 0.7 if train_ratio is None else train_ratio
-        remaining = np.flatnonzero(~warmup_mask)
-        split = int(len(remaining) * ratio)
+        split = int(n * ratio)
         train_mask = np.zeros(n, dtype=bool)
         val_mask = np.zeros(n, dtype=bool)
-        train_mask[remaining[:split]] = True
-        val_mask[remaining[split:]] = True
+        train_mask[:split] = True
+        val_mask[split:] = True
 
     # Warm-up always wins, regardless of how train/val were specified.
     train_mask &= ~warmup_mask
     val_mask &= ~warmup_mask
+
     return warmup_mask, train_mask, val_mask
