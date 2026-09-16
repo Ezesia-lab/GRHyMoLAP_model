@@ -23,16 +23,15 @@ class GRHyMoLAP:
 
     Examples
     --------
-    >>> model = GRHyMoLAP(n_warmup=365)
-    >>> model.fit(P, PET, Q, dates=dates, train_ratio=0.7)
+    >>> model = GRHyMoLAP(n_warmup=0)
+    >>> model.fit(P, PET, Q, dates=dates, train_ratio=0.6)
     >>> model.train_scores_["nse"], model.val_scores_["nse"]
     >>> Qsim_future = model.simulate(P_new, PET_new)
 
     Parameters
     ----------
-    n_warmup : int, default 365
-        Timesteps at the start of the record excluded from scoring,
-        giving the internal soil-moisture state time to settle.
+    n_warmup : int, default 0
+        Timesteps at the start of the record excluded from scoring.
     objective : str, default "nse"
         Calibration objective — one of "nse", "kge", "lognse", "rmse",
         "mae", "pbias".
@@ -48,7 +47,7 @@ class GRHyMoLAP:
 
     def __init__(
         self,
-        n_warmup: int = 365,
+        n_warmup: int = 0,
         objective: str = "nse",
         optimizer: str = "nelder-mead",
         bounds=None,
@@ -72,7 +71,7 @@ class GRHyMoLAP:
         PET,
         Q,
         dates=None,
-        train_ratio: float | None = None,
+        train_ratio: float | None = 0.6,
         train_period: tuple | None = None,
         val_period: tuple | None = None,
         Q0: float | None = None,
@@ -82,7 +81,7 @@ class GRHyMoLAP:
         ``train_ratio`` (post-warmup ratio split) and
         ``train_period``/``val_period`` (explicit date ranges,
         requires ``dates``) are both supported — pass whichever fits
-        your workflow. Defaults to ``train_ratio=0.7`` if neither is
+        your workflow. Defaults to ``train_ratio=0.6`` if neither is
         given.
         """
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
