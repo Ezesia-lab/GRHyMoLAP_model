@@ -191,12 +191,6 @@ Replay the forcing used during `fit()`:
 Qsim = model.simulate()
 ```
 
-A different initial streamflow can also be specified:
-
-```python
-Qsim_new = model.simulate(P_new, PET_new, Q0=0.0)
-```
-
 ## Scoring
 
 A fitted model can be evaluated on supplied data:
