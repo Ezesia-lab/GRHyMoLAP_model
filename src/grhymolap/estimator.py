@@ -1,5 +1,5 @@
 """
-Public, sklearn-style interface: ``GRHyMoLAP().fit(P, PET, Q).simulate()``.
+Public interface: ``GRHyMoLAP().fit(P, PET, Q).simulate()``.
 """
 
 from __future__ import annotations
@@ -24,8 +24,13 @@ class GRHyMoLAP:
     Examples
     --------
     >>> model = GRHyMoLAP(n_warmup=365)
-    >>> model.fit(P, PET, Q, dates=dates, train_ratio=0.7)
-    >>> model.train_scores_["nse"], model.val_scores_["nse"]
+    >>> model.fit(
+    ...     P, PET, Q,
+    ...     dates=dates,
+    ...     calibration_period=("2000-01-01", "2010-12-31"),
+    ...     validation_period=("2011-01-01", "2014-12-31"),
+    ... )
+    >>> model.calibration_scores_["nse"], model.validation_scores_["nse"]
     >>> Qsim_future = model.simulate(P_new, PET_new)
 
     Parameters
@@ -76,34 +81,30 @@ class GRHyMoLAP:
         PET,
         Q,
         dates=None,
-        train_ratio: float | None = None,
-        train_period: tuple | None = None,
-        val_period: tuple | None = None,
+        calibration_period: tuple | None = None,
+        validation_period: tuple | None = None,
         Q0: float | None = None,
     ) -> "GRHyMoLAP":
         """Calibrate the model.
 
-        ``train_ratio`` defines the calibration period as a fraction of
-        the full record. The warm-up period is included within this
-        calibration period but excluded from the calibration objective
-        and performance scores.
+        ``calibration_period`` and ``validation_period`` define explicit
+        date ranges for calibration and validation. The warm-up period
+        is simulated within the calibration period but excluded from
+        the calibration objective and performance scores.
 
-        ``train_period``/``val_period`` can alternatively be used to
-        specify explicit date ranges, requiring ``dates``. If neither
-        is given, ``train_ratio=0.7`` is used.
+        ``dates`` is required when either period is specified.
         """
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
         n = len(Q)
         Pn, En = net_fluxes(P, PET)
         Q0_ = float(Q[0]) if Q0 is None else float(Q0)
 
-        warmup_mask, train_mask, val_mask = resolve_periods(
+        warmup_mask, calibration_mask, validation_mask = resolve_periods(
             n,
             dates=dates,
             n_warmup=self.n_warmup,
-            train_ratio=train_ratio,
-            train_period=train_period,
-            val_period=val_period,
+            calibration_period=calibration_period,
+            validation_period=validation_period,
         )
 
         params, _ = calibrate(
@@ -111,7 +112,7 @@ class GRHyMoLAP:
             Pn,
             En,
             Q,
-            train_mask=train_mask,
+            calibration_mask=calibration_mask,
             objective=self.objective,
             optimizer=self.optimizer,
             bounds=self.bounds,
@@ -125,12 +126,14 @@ class GRHyMoLAP:
 
         self.params_ = np.asarray(params)
         self.warmup_mask_ = warmup_mask
-        self.train_mask_ = train_mask
-        self.val_mask_ = val_mask
+        self.calibration_mask_ = calibration_mask
+        self.validation_mask_ = validation_mask
         self.Q_sim_ = Qsim
-        self.train_scores_ = _score_all(Q[train_mask], Qsim[train_mask])
-        self.val_scores_ = (
-            _score_all(Q[val_mask], Qsim[val_mask]) if val_mask.any() else {}
+        self.calibration_scores_ = _score_all(Q[calibration_mask], Qsim[calibration_mask])
+        self.validation_scores_ = (
+            _score_all(Q[validation_mask], Qsim[validation_mask])
+            if validation_mask.any()
+            else {}
         )
 
         self._Pn, self._En, self._Q0 = Pn, En, Q0_
@@ -142,7 +145,7 @@ class GRHyMoLAP:
         """Simulate streamflow; with no args, replays the fit() data.
 
         Pass new ``P``/``PET`` (e.g. a held-out period, or forcing
-        from an ML component) to run the fitted parameters on
+        from an independent period) to run the fitted parameters on
         different data.
         """
         if not hasattr(self, "params_"):
