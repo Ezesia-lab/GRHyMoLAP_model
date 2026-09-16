@@ -46,7 +46,7 @@ OPTIMIZERS = {
 }
 
 
-def _build_objective(objective: str, Q0, Pn, En, Q_obs, mask):
+def _build_objective(objective: str, Q0, Pn, En, Q_obs, calibration_mask):
     if objective not in OBJECTIVES:
         raise ValueError(
             f"Unknown objective '{objective}'. Options: {list(OBJECTIVES)}"
@@ -56,7 +56,7 @@ def _build_objective(objective: str, Q0, Pn, En, Q_obs, mask):
 
     def _objective(params):
         Qsim = simulate_streamflow(params, Q0, Pn, En)
-        val = metric_func(Q_obs[mask], Qsim[mask])
+        val = metric_func(Q_obs[calibration_mask], Qsim[calibration_mask])
         if val is None or not np.isfinite(val):
             return 1e9
         return sign * val
@@ -69,7 +69,7 @@ def calibrate(
     Pn: np.ndarray,
     En: np.ndarray,
     Q_obs: np.ndarray,
-    train_mask: np.ndarray,
+    calibration_mask: np.ndarray,
     objective: str = "nse",
     optimizer: str = "nelder-mead",
     bounds: Sequence[tuple] | None = None,
@@ -78,7 +78,7 @@ def calibrate(
     custom_optimizer: Callable | None = None,
     optimizer_kwargs: dict | None = None,
 ):
-    """Calibrate GRHyMoLAP parameters against ``train_mask`` timesteps.
+    """Calibrate GRHyMoLAP parameters against calibration-period timesteps.
 
     Parameters
     ----------
@@ -87,8 +87,9 @@ def calibrate(
     Pn, En, Q_obs : np.ndarray
         Full-length net precipitation, net evapotranspiration, and
         observed streamflow.
-    train_mask : np.ndarray[bool]
-        Which timesteps count toward the objective — see
+    calibration_mask : np.ndarray[bool]
+        Which timesteps within the calibration period count toward the
+        calibration objective — see
         ``grhymolap.periods.resolve_periods``.
     objective : str, default "nse"
         One of ``grhymolap.metrics.OBJECTIVES`` — "nse", "kge",
@@ -104,7 +105,7 @@ def calibrate(
         Multi-start points for local optimizers. Defaults to
         ``DEFAULT_INITIAL_GUESSES``. Ignored by "differential_evolution".
     custom_objective : callable, optional
-        ``f(params, Q0, Pn, En, Q_obs, train_mask) -> float`` to
+        ``f(params, Q0, Pn, En, Q_obs, calibration_mask) -> float`` to
         minimize. Use this to score against something not in
         ``OBJECTIVES`` (e.g. a hybrid ML loss).
     custom_optimizer : callable, optional
@@ -132,14 +133,20 @@ def calibrate(
     else:
         optimizer_kwargs = dict(optimizer_kwargs)
 
-    if not np.any(train_mask):
-        raise ValueError("train_mask has no True entries to calibrate on.")
+    if not np.any(calibration_mask):
+        raise ValueError(
+            "calibration_mask has no True entries to calibrate on."
+        )
 
     if custom_objective is not None:
         def obj_fn(params):
-            return custom_objective(params, Q0, Pn, En, Q_obs, train_mask)
+            return custom_objective(
+                params, Q0, Pn, En, Q_obs, calibration_mask
+            )
     else:
-        obj_fn = _build_objective(objective, Q0, Pn, En, Q_obs, train_mask)
+        obj_fn = _build_objective(
+            objective, Q0, Pn, En, Q_obs, calibration_mask
+        )
 
     if custom_optimizer is not None:
         best_params = np.asarray(
