@@ -24,9 +24,9 @@ class GRHyMoLAP:
     --------
     >>> model = GRHyMoLAP(n_warmup=365)
     >>> model.fit(P_cal, PET_cal, Q_cal, Q0=Q_cal[0])
-    >>> model.calibration_scores_["nse"]
+    >>> model.calibration_scores_
     >>> Qsim_val = model.simulate(P_val, PET_val, Q0=Q_val[0])
-    >>> model.score(P_val, PET_val, Q_val, Q0=Q_val[0], metric="nse")
+    >>> model.validation_scores(P_val, PET_val, Q_val, Q0=Q_val[0])
 
     Parameters
     ----------
@@ -46,8 +46,7 @@ class GRHyMoLAP:
     bounds, initial_guesses, custom_objective, custom_optimizer,
     optimizer_kwargs :
         Passed straight through to
-        :func:`grhymolap.calibration.calibrate`; see its docstring
-        for details, including signatures for the custom hooks.
+        :func:`grhymolap.calibration.calibrate`.
     """
 
     def __init__(
@@ -71,7 +70,7 @@ class GRHyMoLAP:
         self.optimizer_kwargs = optimizer_kwargs
 
     def fit(self, P, PET, Q, Q0) -> "GRHyMoLAP":
-        """Calibrate the model on an independent calibration series.
+        """Calibrate the model on a calibration series.
 
         Parameters
         ----------
@@ -112,7 +111,7 @@ class GRHyMoLAP:
         Pn, En = net_fluxes(P, PET)
         Q0_ = float(Q0)
 
-        params, _ = calibrate(
+        params = calibrate(
             Q0_,
             Pn,
             En,
@@ -140,7 +139,7 @@ class GRHyMoLAP:
         return self
 
     def simulate(self, P, PET, Q0) -> np.ndarray:
-        """Simulate streamflow on an independent forcing series.
+        """Simulate streamflow on an independent series.
 
         Parameters
         ----------
@@ -161,24 +160,14 @@ class GRHyMoLAP:
         return simulate_streamflow(self.params_, float(Q0), Pn, En)
 
     def score(self, P, PET, Q, Q0, metric: str = "nse") -> float:
-        """Simulate and score an independent observed series.
-
-        Parameters
-        ----------
-        P, PET, Q : array-like
-            Precipitation, potential evapotranspiration, and observed
-            streamflow for the independent series.
-        Q0 : float
-            Initial streamflow state used to start the simulation.
-        metric : str, default "nse"
-            Metric to compute. Must be one of ``OBJECTIVES``.
-
-        Returns
-        -------
-        float
-            Performance score.
-        """
+        """Simulate and calculate one performance metric."""
         Q = np.asarray(Q, dtype=float)
         Qsim = self.simulate(P, PET, Q0=Q0)
         func, _ = OBJECTIVES[metric]
         return func(Q, Qsim)
+
+    def validation_scores(self, P, PET, Q, Q0) -> dict:
+        """Simulate an independent series and return all performance scores."""
+        Q = np.asarray(Q, dtype=float)
+        Qsim = self.simulate(P, PET, Q0=Q0)
+        return _score_all(Q, Qsim)
