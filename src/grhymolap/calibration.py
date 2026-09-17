@@ -78,19 +78,19 @@ def calibrate(
     custom_optimizer: Callable | None = None,
     optimizer_kwargs: dict | None = None,
 ):
-    """Calibrate GRHyMoLAP parameters against calibration-period timesteps.
+    """Calibrate GRHyMoLAP parameters on selected timesteps.
 
     Parameters
     ----------
     Q0 : float
-        Initial streamflow state (model always simulates from t=0).
+        Initial streamflow state used to start the simulation.
     Pn, En, Q_obs : np.ndarray
         Full-length net precipitation, net evapotranspiration, and
-        observed streamflow.
+        observed streamflow for the supplied calibration series.
     calibration_mask : np.ndarray[bool]
-        Which timesteps within the calibration period count toward the
-        calibration objective — see
-        ``grhymolap.periods.resolve_periods``.
+        Boolean mask identifying the timesteps that contribute to the
+        calibration objective. This can be used, for example, to exclude
+        a warm-up period.
     objective : str, default "nse"
         One of ``grhymolap.metrics.OBJECTIVES`` — "nse", "kge",
         "lognse", "rmse", "mae", "pbias". Ignored if
