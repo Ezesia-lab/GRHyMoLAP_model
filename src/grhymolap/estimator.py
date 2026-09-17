@@ -1,5 +1,5 @@
 """
-Public interface: ``GRHyMoLAP().fit(P, PET, Q).simulate()``.
+Public interface: ``GRHyMoLAP().fit(P, PET, Q, Q0).simulate()``.
 """
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ import numpy as np
 from .calibration import calibrate
 from .metrics import OBJECTIVES
 from .model import net_fluxes, simulate_streamflow
-from .periods import resolve_periods
 
 __all__ = ["GRHyMoLAP"]
 
@@ -24,19 +23,15 @@ class GRHyMoLAP:
     Examples
     --------
     >>> model = GRHyMoLAP(n_warmup=365)
-    >>> model.fit(
-    ...     P, PET, Q,
-    ...     dates=dates,
-    ...     calibration_period=("2000-01-01", "2010-12-31"),
-    ...     validation_period=("2011-01-01", "2014-12-31"),
-    ... )
-    >>> model.calibration_scores_["nse"], model.validation_scores_["nse"]
-    >>> Qsim_future = model.simulate(P_new, PET_new)
+    >>> model.fit(P_cal, PET_cal, Q_cal, Q0=Q_cal[0])
+    >>> model.calibration_scores_["nse"]
+    >>> Qsim_val = model.simulate(P_val, PET_val, Q0=Q_val[0])
+    >>> model.score(P_val, PET_val, Q_val, Q0=Q_val[0], metric="nse")
 
     Parameters
     ----------
     n_warmup : int, default 365
-        Timesteps at the start of the calibration period that are
+        Timesteps at the start of the calibration series that are
         simulated to allow the internal states to settle but excluded
         from the calibration objective and performance scores.
 
@@ -75,37 +70,47 @@ class GRHyMoLAP:
         self.custom_optimizer = custom_optimizer
         self.optimizer_kwargs = optimizer_kwargs
 
-    def fit(
-        self,
-        P,
-        PET,
-        Q,
-        dates=None,
-        calibration_period: tuple | None = None,
-        validation_period: tuple | None = None,
-        Q0: float | None = None,
-    ) -> "GRHyMoLAP":
-        """Calibrate the model.
+    def fit(self, P, PET, Q, Q0) -> "GRHyMoLAP":
+        """Calibrate the model on an independent calibration series.
 
-        ``calibration_period`` and ``validation_period`` define explicit
-        date ranges for calibration and validation. The warm-up period
-        is simulated within the calibration period but excluded from
-        the calibration objective and performance scores.
+        Parameters
+        ----------
+        P, PET, Q : array-like
+            Precipitation, potential evapotranspiration, and observed
+            streamflow for the calibration series.
+        Q0 : float
+            Initial streamflow state used to start the simulation.
 
-        ``dates`` is required when either period is specified.
+        Returns
+        -------
+        GRHyMoLAP
+            Fitted model instance.
         """
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
-        n = len(Q)
-        Pn, En = net_fluxes(P, PET)
-        Q0_ = float(Q[0]) if Q0 is None else float(Q0)
 
-        warmup_mask, calibration_mask, validation_mask = resolve_periods(
-            n,
-            dates=dates,
-            n_warmup=self.n_warmup,
-            calibration_period=calibration_period,
-            validation_period=validation_period,
-        )
+        if not (len(P) == len(PET) == len(Q)):
+            raise ValueError("P, PET, and Q must have the same length.")
+
+        if len(Q) == 0:
+            raise ValueError("P, PET, and Q must not be empty.")
+
+        if self.n_warmup < 0:
+            raise ValueError("n_warmup must be non-negative.")
+
+        n = len(Q)
+        n_warmup = min(self.n_warmup, n)
+
+        warmup_mask = np.zeros(n, dtype=bool)
+        warmup_mask[:n_warmup] = True
+        calibration_mask = ~warmup_mask
+
+        if not np.any(calibration_mask):
+            raise ValueError(
+                "n_warmup must be smaller than the length of the calibration series."
+            )
+
+        Pn, En = net_fluxes(P, PET)
+        Q0_ = float(Q0)
 
         params, _ = calibrate(
             Q0_,
@@ -127,41 +132,53 @@ class GRHyMoLAP:
         self.params_ = np.asarray(params)
         self.warmup_mask_ = warmup_mask
         self.calibration_mask_ = calibration_mask
-        self.validation_mask_ = validation_mask
         self.Q_sim_ = Qsim
-        self.calibration_scores_ = _score_all(Q[calibration_mask], Qsim[calibration_mask])
-        self.validation_scores_ = (
-            _score_all(Q[validation_mask], Qsim[validation_mask])
-            if validation_mask.any()
-            else {}
+        self.calibration_scores_ = _score_all(
+            Q[calibration_mask], Qsim[calibration_mask]
         )
 
-        self._Pn, self._En, self._Q0 = Pn, En, Q0_
         return self
 
-    def simulate(
-        self, P=None, PET=None, Q0: float | None = None
-    ) -> np.ndarray:
-        """Simulate streamflow; with no args, replays the fit() data.
+    def simulate(self, P, PET, Q0) -> np.ndarray:
+        """Simulate streamflow on an independent forcing series.
 
-        Pass new ``P``/``PET`` (e.g. a held-out period, or forcing
-        from an independent period) to run the fitted parameters on
-        different data.
+        Parameters
+        ----------
+        P, PET : array-like
+            Precipitation and potential evapotranspiration.
+        Q0 : float
+            Initial streamflow state used to start the simulation.
+
+        Returns
+        -------
+        np.ndarray
+            Simulated streamflow.
         """
         if not hasattr(self, "params_"):
             raise RuntimeError("Call fit() before simulate().")
 
-        if P is None and PET is None:
-            Pn, En, Q0_ = self._Pn, self._En, self._Q0
-        else:
-            Pn, En = net_fluxes(P, PET)
-            Q0_ = self._Q0 if Q0 is None else float(Q0)
+        Pn, En = net_fluxes(P, PET)
+        return simulate_streamflow(self.params_, float(Q0), Pn, En)
 
-        return simulate_streamflow(self.params_, Q0_, Pn, En)
+    def score(self, P, PET, Q, Q0, metric: str = "nse") -> float:
+        """Simulate and score an independent observed series.
 
-    def score(self, P, PET, Q, metric: str = "nse") -> float:
-        """Simulate on (P, PET) and score against observed Q."""
+        Parameters
+        ----------
+        P, PET, Q : array-like
+            Precipitation, potential evapotranspiration, and observed
+            streamflow for the independent series.
+        Q0 : float
+            Initial streamflow state used to start the simulation.
+        metric : str, default "nse"
+            Metric to compute. Must be one of ``OBJECTIVES``.
+
+        Returns
+        -------
+        float
+            Performance score.
+        """
         Q = np.asarray(Q, dtype=float)
-        Qsim = self.simulate(P, PET, Q0=Q[0])
+        Qsim = self.simulate(P, PET, Q0=Q0)
         func, _ = OBJECTIVES[metric]
         return func(Q, Qsim)
