@@ -23,10 +23,9 @@ class GRHyMoLAP:
     Examples
     --------
     >>> model = GRHyMoLAP(n_warmup=365)
-    >>> model.fit(P_cal, PET_cal, Q_cal, Q0=Q_cal[0])
+    >>> model.fit(P, PET, Q, Q0=Q[0])
     >>> model.calibration_scores_
-    >>> Qsim_val = model.simulate(P_val, PET_val, Q0=Q_val[0])
-    >>> model.validation_scores(P_val, PET_val, Q_val, Q0=Q_val[0])
+    >>> Qsim = model.simulate(P, PET, Q0=Q[0])
 
     Parameters
     ----------
@@ -70,7 +69,7 @@ class GRHyMoLAP:
         self.optimizer_kwargs = optimizer_kwargs
 
     def fit(self, P, PET, Q, Q0) -> "GRHyMoLAP":
-        """Calibrate the model on a calibration series.
+        """Calibrate the model on a supplied series.
 
         Parameters
         ----------
@@ -139,7 +138,7 @@ class GRHyMoLAP:
         return self
 
     def simulate(self, P, PET, Q0) -> np.ndarray:
-        """Simulate streamflow on an independent series.
+        """Simulate streamflow on a supplied series.
 
         Parameters
         ----------
@@ -160,14 +159,8 @@ class GRHyMoLAP:
         return simulate_streamflow(self.params_, float(Q0), Pn, En)
 
     def score(self, P, PET, Q, Q0, metric: str = "nse") -> float:
-        """Simulate and calculate one performance metric."""
+        """Simulate a supplied series and calculate one performance metric."""
         Q = np.asarray(Q, dtype=float)
         Qsim = self.simulate(P, PET, Q0=Q0)
         func, _ = OBJECTIVES[metric]
         return func(Q, Qsim)
-
-    def validation_scores(self, P, PET, Q, Q0) -> dict:
-        """Simulate an independent series and return all performance scores."""
-        Q = np.asarray(Q, dtype=float)
-        Qsim = self.simulate(P, PET, Q0=Q0)
-        return _score_all(Q, Qsim)
