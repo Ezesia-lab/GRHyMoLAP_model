@@ -1,5 +1,5 @@
 """
-Public interface: ``GRHyMoLAP().fit(P, PET, Q, Q0).simulate()``.
+Public interface: ``GRHyMoLAP().fit(P, PET, Q).simulate()``.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ class GRHyMoLAP:
     Examples
     --------
     >>> model = GRHyMoLAP(n_warmup=365)
-    >>> model.fit(P, PET, Q, Q0=Q[0])
+    >>> model.fit(P, PET, Q)
     >>> model.calibration_scores_
     >>> Qsim = model.simulate(P_next, PET_next)
 
@@ -65,7 +65,7 @@ class GRHyMoLAP:
 
     def fit(self, P, PET, Q) -> "GRHyMoLAP":
         """Calibrate the model on a supplied series."""
-        
+
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
 
         if not (len(P) == len(PET) == len(Q)):
@@ -78,7 +78,7 @@ class GRHyMoLAP:
             raise ValueError("n_warmup must be non-negative.")
 
         Q0 = float(Q[0])
-        
+
         n = len(Q)
         n_warmup = min(self.n_warmup, n)
 
@@ -92,10 +92,9 @@ class GRHyMoLAP:
             )
 
         Pn, En = net_fluxes(P, PET)
-        Q0_ = float(Q0)
 
         params = calibrate(
-            Q0_,
+            Q0,
             Pn,
             En,
             Q,
@@ -111,7 +110,7 @@ class GRHyMoLAP:
 
         Qsim, Q_final, S_final = simulate_streamflow(
             params,
-            Q0_,
+            Q0,
             Pn,
             En,
             return_state=True,
