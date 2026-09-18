@@ -63,9 +63,9 @@ class GRHyMoLAP:
         self.custom_optimizer = custom_optimizer
         self.optimizer_kwargs = optimizer_kwargs
 
-    def fit(self, P, PET, Q, Q0) -> "GRHyMoLAP":
+    def fit(self, P, PET, Q) -> "GRHyMoLAP":
         """Calibrate the model on a supplied series."""
-
+        Q0 =  Q[0]
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
 
         if not (len(P) == len(PET) == len(Q)):
