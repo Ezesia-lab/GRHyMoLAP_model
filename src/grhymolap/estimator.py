@@ -65,7 +65,7 @@ class GRHyMoLAP:
 
     def fit(self, P, PET, Q) -> "GRHyMoLAP":
         """Calibrate the model on a supplied series."""
-        Q0 =  Q[0]
+        
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
 
         if not (len(P) == len(PET) == len(Q)):
@@ -77,6 +77,8 @@ class GRHyMoLAP:
         if self.n_warmup < 0:
             raise ValueError("n_warmup must be non-negative.")
 
+        Q0 = float(Q[0])
+        
         n = len(Q)
         n_warmup = min(self.n_warmup, n)
 
