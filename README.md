@@ -146,10 +146,6 @@ After calibration:
 ```python
 model.params_
 model.Q_sim_
-
-model.warmup_mask_
-model.calibration_mask_
-
 model.calibration_scores_
 ```
 
@@ -165,15 +161,7 @@ Available performance metrics:
 
 ## Simulation
 
-Run the calibrated model on a new forcing series:
-
-```python
-Qsim_new = model.simulate(P_new, PET_new)
-```
-
-The simulation continues from the final internal state of the previous simulation. This allows consecutive periods to be simulated without manually specifying an initial streamflow.
-
-For example:
+Run the calibrated model on a validation forcing series:
 
 ```python
 model.fit(P_cal, PET_cal, Q_cal)
@@ -181,15 +169,21 @@ model.fit(P_cal, PET_cal, Q_cal)
 Qsim_val = model.simulate(P_val, PET_val)
 ```
 
-Here, the simulation on `P_val` and `PET_val` starts from the final state reached during calibration.
-
 ## Scoring
 
 A fitted model can be evaluated on a supplied series:
 
 ```python
-nse_val = model.score(P_val, PET_val, Q_val, metric="nse")
-kge_val = model.score(P_val, PET_val, Q_val, metric="kge")
+from grhymolap import nse, kge, lognse, rmse, mae, pbias
+
+scores_val = {
+    "nse": nse(Q_val, Qsim_val),
+    "kge": kge(Q_val, Qsim_val),
+    "lognse": lognse(Q_val, Qsim_val),
+    "rmse": rmse(Q_val, Qsim_val),
+    "mae": mae(Q_val, Qsim_val),
+    "pbias": pbias(Q_val, Qsim_val),
+}
 ```
 
 The scoring method simulates the supplied forcing and calculates the selected performance metric.
