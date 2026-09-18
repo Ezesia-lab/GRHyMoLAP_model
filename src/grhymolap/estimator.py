@@ -25,7 +25,7 @@ class GRHyMoLAP:
     >>> model = GRHyMoLAP(n_warmup=365)
     >>> model.fit(P, PET, Q, Q0=Q[0])
     >>> model.calibration_scores_
-    >>> Qsim = model.simulate(P, PET, Q0=Q[0])
+    >>> Qsim = model.simulate(P_next, PET_next)
 
     Parameters
     ----------
@@ -41,11 +41,6 @@ class GRHyMoLAP:
     optimizer : str, default "nelder-mead"
         Calibration optimizer — one of "nelder-mead", "l-bfgs-b",
         "differential_evolution".
-
-    bounds, initial_guesses, custom_objective, custom_optimizer,
-    optimizer_kwargs :
-        Passed straight through to
-        :func:`grhymolap.calibration.calibrate`.
     """
 
     def __init__(
@@ -69,21 +64,8 @@ class GRHyMoLAP:
         self.optimizer_kwargs = optimizer_kwargs
 
     def fit(self, P, PET, Q, Q0) -> "GRHyMoLAP":
-        """Calibrate the model on a supplied series.
+        """Calibrate the model on a supplied series."""
 
-        Parameters
-        ----------
-        P, PET, Q : array-like
-            Precipitation, potential evapotranspiration, and observed
-            streamflow for the calibration series.
-        Q0 : float
-            Initial streamflow state used to start the simulation.
-
-        Returns
-        -------
-        GRHyMoLAP
-            Fitted model instance.
-        """
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
 
         if not (len(P) == len(PET) == len(Q)):
@@ -125,42 +107,61 @@ class GRHyMoLAP:
             optimizer_kwargs=self.optimizer_kwargs,
         )
 
-        Qsim = simulate_streamflow(params, Q0_, Pn, En)
+        Qsim, Q_final, S_final = simulate_streamflow(
+            params,
+            Q0_,
+            Pn,
+            En,
+            return_state=True,
+        )
 
         self.params_ = np.asarray(params)
         self.warmup_mask_ = warmup_mask
         self.calibration_mask_ = calibration_mask
         self.Q_sim_ = Qsim
         self.calibration_scores_ = _score_all(
-            Q[calibration_mask], Qsim[calibration_mask]
+            Q[calibration_mask],
+            Qsim[calibration_mask],
         )
+
+        self.Q_state_ = Q_final
+        self.S_state_ = S_final
 
         return self
 
-    def simulate(self, P, PET, Q0) -> np.ndarray:
-        """Simulate streamflow on a supplied series.
+    def simulate(self, P, PET) -> np.ndarray:
+        """Continue the simulation from the current model state."""
 
-        Parameters
-        ----------
-        P, PET : array-like
-            Precipitation and potential evapotranspiration.
-        Q0 : float
-            Initial streamflow state used to start the simulation.
-
-        Returns
-        -------
-        np.ndarray
-            Simulated streamflow.
-        """
         if not hasattr(self, "params_"):
             raise RuntimeError("Call fit() before simulate().")
 
         Pn, En = net_fluxes(P, PET)
-        return simulate_streamflow(self.params_, float(Q0), Pn, En)
 
-    def score(self, P, PET, Q, Q0, metric: str = "nse") -> float:
-        """Simulate a supplied series and calculate one performance metric."""
+        Qsim, Q_final, S_final = simulate_streamflow(
+            self.params_,
+            self.Q_state_,
+            Pn,
+            En,
+            S0=self.S_state_,
+            return_state=True,
+        )
+
+        self.Q_state_ = Q_final
+        self.S_state_ = S_final
+
+        return Qsim
+
+    def score(self, P, PET, Q, metric: str = "nse") -> float:
+        """Continue the simulation and calculate one performance metric."""
+
         Q = np.asarray(Q, dtype=float)
-        Qsim = self.simulate(P, PET, Q0=Q0)
+        Qsim = self.simulate(P, PET)
+
+        if metric not in OBJECTIVES:
+            raise ValueError(
+                f"Unknown metric '{metric}'. Options: {list(OBJECTIVES)}"
+            )
+
         func, _ = OBJECTIVES[metric]
+
         return func(Q, Qsim)
