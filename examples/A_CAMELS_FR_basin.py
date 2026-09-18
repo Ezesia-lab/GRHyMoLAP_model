@@ -39,7 +39,7 @@ P_val = data_val.sel(dynamic_features="pcp_mm").to_numpy()
 PET_val = data_val.sel(dynamic_features="pet_mm_pm").to_numpy()
 
 #Calibration
-model = GRHyMoLAP(n_warmup=0)
+model = GRHyMoLAP(n_warmup=365)
 
 model.fit(P_cal, PET_cal, Q_cal)
 
