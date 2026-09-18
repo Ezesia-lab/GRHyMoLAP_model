@@ -50,8 +50,6 @@ The initial streamflow state is automatically set to the first observed streamfl
 Q0 = Q[0]
 ```
 
-The user does not need to provide `Q0` explicitly.
-
 ### Warm-up
 
 `n_warmup` defines the number of timesteps at the beginning of the calibration series that are simulated to allow the model states to settle but excluded from the calibration objective and calibration scores.
