@@ -1,7 +1,7 @@
 # GRHyMoLAP
 
 <p align="center">
-  <img src=".github/GRHyMoLAP_image.jpeg" alt="GRHyMoLAP model" width="800">
+  <img src=".github/GRHyMoLAP_image.jpeg" alt="GRHyMoLAP model" width="400">
 </p>
 
 A lightweight, calibratable rainfall-runoff model with a hydrology-oriented API — calibrate it on precipitation, PET, and observed streamflow, then simulate.
