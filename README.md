@@ -35,7 +35,7 @@ pip install -e ".[dev]"
 
 ## Import
 
-```bash
+```python
 from grhymolap import GRHyMoLAP
 ```
 
