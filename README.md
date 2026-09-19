@@ -40,6 +40,22 @@ pip install -e ".[dev]"
 * **`grhymolap.calibration`** — objective and optimizer selection, parameter bounds, initial guesses, and custom calibration functions.
 * **`grhymolap.GRHyMoLAP`** — main interface: `.fit()` / `.simulate()` / `.score()`.
 
+## Import
+
+```python
+from grhymolap import GRHyMoLAP
+```
+
+### Warm-up
+
+`n_warmup` defines the number of timesteps at the beginning of the calibration series that are simulated to allow the model states to settle but excluded from the calibration objective and calibration scores.
+
+```python
+model = GRHyMoLAP(n_warmup=365)
+```
+
+Set `n_warmup=0` to disable the warm-up.
+
 ## Calibration
 
 Calibration is performed directly on a supplied precipitation, PET, and observed streamflow series:
@@ -54,17 +70,7 @@ The initial streamflow state is automatically set to the first observed streamfl
 Q0 = Q[0]
 ```
 
-### Warm-up
-
-`n_warmup` defines the number of timesteps at the beginning of the calibration series that are simulated to allow the model states to settle but excluded from the calibration objective and calibration scores.
-
-```python
-model = GRHyMoLAP(n_warmup=365)
-```
-
-Set `n_warmup=0` to disable the warm-up.
-
-After calibration, the final model states are retained internally. Subsequent calls to `.simulate()` continue from these states.
+After calibration, the final model states are retained internally. Subsequent calls to `.simulate()` can simulate streamflow for new, unseen periods.
 
 ## Choosing objective and optimizer
 
