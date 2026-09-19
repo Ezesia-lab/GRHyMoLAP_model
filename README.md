@@ -33,6 +33,12 @@ For local development:
 pip install -e ".[dev]"
 ```
 
+## Import
+
+```bash
+from grhymolap import GRHyMoLAP
+```
+
 ## Design
 
 * **`grhymolap.model`** — model equations (percolation, streamflow), JIT-compiled with [Numba](https://numba.pydata.org/) for the sequential loops repeatedly evaluated during calibration.
