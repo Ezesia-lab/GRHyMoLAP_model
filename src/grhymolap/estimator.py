@@ -23,7 +23,7 @@ class GRHyMoLAP:
     Examples
     --------
     >>> model = GRHyMoLAP()
-    >>> model.fit(P, PET, Q)
+    >>> model.fit(P, PET, Q, n_warmup=365)
     >>> model.calibration_scores_
     >>> Qsim = model.simulate(P_next, PET_next)
 
@@ -56,8 +56,8 @@ class GRHyMoLAP:
         self.custom_optimizer = custom_optimizer
         self.optimizer_kwargs = optimizer_kwargs
 
-    def fit(self, P, PET, Q) -> "GRHyMoLAP":
-        """Calibrate the model on a supplied series."""
+    def fit(self, P, PET, Q, n_warmup: int = 0) -> "GRHyMoLAP":
+        """Calibrate the model, excluding warmup timesteps from calibration."""
 
         P, PET, Q = (np.asarray(a, dtype=float) for a in (P, PET, Q))
 
@@ -67,8 +67,20 @@ class GRHyMoLAP:
         if len(Q) == 0:
             raise ValueError("P, PET, and Q must not be empty.")
 
+        if not isinstance(n_warmup, (int, np.integer)) or isinstance(n_warmup, (bool, np.bool_)):
+            raise TypeError("n_warmup must be a non-negative integer.")
+
+        if n_warmup < 0:
+            raise ValueError("n_warmup must be non-negative.")
+
+        if n_warmup >= len(Q):
+            raise ValueError("n_warmup must be smaller than the length of the calibration series.")
+
         Q0 = float(Q[0])
-        calibration_mask = np.ones(len(Q), dtype=bool)
+
+        warmup_mask = np.zeros(len(Q), dtype=bool)
+        warmup_mask[:n_warmup] = True
+        calibration_mask = ~warmup_mask
 
         Pn, En = net_fluxes(P, PET)
 
@@ -96,9 +108,14 @@ class GRHyMoLAP:
         )
 
         self.params_ = np.asarray(params)
+        self.warmup_mask_ = warmup_mask
         self.calibration_mask_ = calibration_mask
         self.Q_sim_ = Qsim
-        self.calibration_scores_ = _score_all(Q, Qsim)
+
+        self.calibration_scores_ = _score_all(
+            Q[calibration_mask],
+            Qsim[calibration_mask],
+        )
 
         self.Q_state_ = Q_final
         self.S_state_ = S_final
