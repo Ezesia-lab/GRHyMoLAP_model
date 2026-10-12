@@ -22,18 +22,13 @@ class GRHyMoLAP:
 
     Examples
     --------
-    >>> model = GRHyMoLAP(n_warmup=365)
+    >>> model = GRHyMoLAP()
     >>> model.fit(P, PET, Q)
     >>> model.calibration_scores_
     >>> Qsim = model.simulate(P_next, PET_next)
 
     Parameters
     ----------
-    n_warmup : int, default 365
-        Timesteps at the start of the calibration series that are
-        simulated to allow the internal states to settle but excluded
-        from the calibration objective and performance scores.
-
     objective : str, default "nse"
         Calibration objective — one of "nse", "kge", "lognse", "rmse",
         "mae", "pbias".
@@ -45,7 +40,6 @@ class GRHyMoLAP:
 
     def __init__(
         self,
-        n_warmup: int = 365,
         objective: str = "nse",
         optimizer: str = "nelder-mead",
         bounds=None,
@@ -54,7 +48,6 @@ class GRHyMoLAP:
         custom_optimizer=None,
         optimizer_kwargs=None,
     ):
-        self.n_warmup = n_warmup
         self.objective = objective
         self.optimizer = optimizer
         self.bounds = bounds
@@ -74,22 +67,8 @@ class GRHyMoLAP:
         if len(Q) == 0:
             raise ValueError("P, PET, and Q must not be empty.")
 
-        if self.n_warmup < 0:
-            raise ValueError("n_warmup must be non-negative.")
-
         Q0 = float(Q[0])
-
-        n = len(Q)
-        n_warmup = min(self.n_warmup, n)
-
-        warmup_mask = np.zeros(n, dtype=bool)
-        warmup_mask[:n_warmup] = True
-        calibration_mask = ~warmup_mask
-
-        if not np.any(calibration_mask):
-            raise ValueError(
-                "n_warmup must be smaller than the length of the calibration series."
-            )
+        calibration_mask = np.ones(len(Q), dtype=bool)
 
         Pn, En = net_fluxes(P, PET)
 
@@ -117,13 +96,9 @@ class GRHyMoLAP:
         )
 
         self.params_ = np.asarray(params)
-        self.warmup_mask_ = warmup_mask
         self.calibration_mask_ = calibration_mask
         self.Q_sim_ = Qsim
-        self.calibration_scores_ = _score_all(
-            Q[calibration_mask],
-            Qsim[calibration_mask],
-        )
+        self.calibration_scores_ = _score_all(Q, Qsim)
 
         self.Q_state_ = Q_final
         self.S_state_ = S_final
@@ -157,6 +132,9 @@ class GRHyMoLAP:
 
         Q = np.asarray(Q, dtype=float)
         Qsim = self.simulate(P, PET)
+
+        if len(Q) != len(Qsim):
+            raise ValueError("Q and simulated streamflow must have the same length.")
 
         if metric not in OBJECTIVES:
             raise ValueError(
