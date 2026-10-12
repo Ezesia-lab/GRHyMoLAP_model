@@ -39,9 +39,9 @@ PET_val = data_val.sel(dynamic_features="pet_mm_pm").to_numpy()
 from grhymolap import GRHyMoLAP
 
 #Calibration
-model = GRHyMoLAP(n_warmup=365)
+model = GRHyMoLAP()
 
-model.fit(P_cal, PET_cal, Q_cal)
+model.fit(P_cal, PET_cal, Q_cal, n_warmup=365)
 
 print("Calibrated parameters:", model.params_)
 print("Calibration scores:", model.calibration_scores_)
