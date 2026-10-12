@@ -19,11 +19,6 @@ rr = RainfallRunoff("CAMELS_FR")
 
 meta, dataframe = rr.fetch()
 
-## GRHyMoLAP model
-!pip install git+https://github.com/Ezesia-lab/grhymolap.git
-
-from grhymolap import GRHyMoLAP
-
 #Station and data
 station = 'H050301001'
 
@@ -37,6 +32,11 @@ PET_cal = data_cal.sel(dynamic_features="pet_mm_pm").to_numpy()
 Q_val = data_val.sel(dynamic_features="q_mm_obs").to_numpy()
 P_val = data_val.sel(dynamic_features="pcp_mm").to_numpy()
 PET_val = data_val.sel(dynamic_features="pet_mm_pm").to_numpy()
+
+## GRHyMoLAP model
+!pip install git+https://github.com/Ezesia-lab/grhymolap.git
+
+from grhymolap import GRHyMoLAP
 
 #Calibration
 model = GRHyMoLAP(n_warmup=365)
