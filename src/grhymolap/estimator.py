@@ -18,25 +18,7 @@ def _score_all(obs, sim) -> dict:
 
 
 class GRHyMoLAP:
-    """A single-basin GRHyMoLAP rainfall-runoff model.
-
-    Examples
-    --------
-    >>> model = GRHyMoLAP()
-    >>> model.fit(P, PET, Q, n_warmup=365)
-    >>> model.calibration_scores_
-    >>> Qsim = model.simulate(P_next, PET_next)
-
-    Parameters
-    ----------
-    objective : str, default "nse"
-        Calibration objective — one of "nse", "kge", "lognse", "rmse",
-        "mae", "pbias".
-
-    optimizer : str, default "nelder-mead"
-        Calibration optimizer — one of "nelder-mead", "l-bfgs-b",
-        "differential_evolution".
-    """
+    """A single-basin GRHyMoLAP rainfall-runoff model."""
 
     def __init__(
         self,
@@ -100,23 +82,14 @@ class GRHyMoLAP:
         )
 
         Qsim, Q_final, S_final = simulate_streamflow(
-            params,
-            Q0,
-            Pn,
-            En,
-            return_state=True,
+            params, Q0, Pn, En, return_state=True
         )
 
         self.params_ = np.asarray(params)
         self.warmup_mask_ = warmup_mask
         self.calibration_mask_ = calibration_mask
         self.Q_sim_ = Qsim
-
-        self.calibration_scores_ = _score_all(
-            Q[calibration_mask],
-            Qsim[calibration_mask],
-        )
-
+        self.calibration_scores_ = _score_all(Q[calibration_mask], Qsim[calibration_mask])
         self.Q_state_ = Q_final
         self.S_state_ = S_final
 
@@ -131,12 +104,7 @@ class GRHyMoLAP:
         Pn, En = net_fluxes(P, PET)
 
         Qsim, Q_final, S_final = simulate_streamflow(
-            self.params_,
-            self.Q_state_,
-            Pn,
-            En,
-            S0=self.S_state_,
-            return_state=True,
+            self.params_, self.Q_state_, Pn, En, S0=self.S_state_, return_state=True
         )
 
         self.Q_state_ = Q_final
@@ -154,10 +122,7 @@ class GRHyMoLAP:
             raise ValueError("Q and simulated streamflow must have the same length.")
 
         if metric not in OBJECTIVES:
-            raise ValueError(
-                f"Unknown metric '{metric}'. Options: {list(OBJECTIVES)}"
-            )
+            raise ValueError(f"Unknown metric '{metric}'. Options: {list(OBJECTIVES)}")
 
         func, _ = OBJECTIVES[metric]
-
         return func(Q, Qsim)
