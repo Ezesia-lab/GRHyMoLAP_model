@@ -1,4 +1,3 @@
-
 """
 Core GRHyMoLAP model equations.
 
@@ -168,7 +167,7 @@ def _simulate_core(MU, LAMBDA, X1, gamma, Q0, S0, Pn, En):
     return Q
 
 
-def simulate_streamflow(params, Q0, Pn, En, S0=None):
+def simulate_streamflow(params, Q0, P, PET, S0=None):
     """
     Simulate streamflow using the GRHyMoLAP model.
 
@@ -178,10 +177,10 @@ def simulate_streamflow(params, Q0, Pn, En, S0=None):
         Model parameters ordered as (MU, LAMBDA, X1, gamma).
     Q0 : float
         Initial streamflow state.
-    Pn : array_like
-        Net precipitation.
-    En : array_like
-        Net evapotranspiration.
+    P : array_like
+        Precipitation.
+    PET : array_like
+        Potential evapotranspiration.
     S0 : float, optional
         Initial production store. Default: X1 / 2.
 
@@ -195,17 +194,17 @@ def simulate_streamflow(params, Q0, Pn, En, S0=None):
         float(p) for p in params
     )
 
-    Pn = np.ascontiguousarray(Pn, dtype=np.float64)
-    En = np.ascontiguousarray(En, dtype=np.float64)
+    P = np.ascontiguousarray(P, dtype=np.float64)
+    PET = np.ascontiguousarray(PET, dtype=np.float64)
 
-    if Pn.ndim != 1 or En.ndim != 1:
-        raise ValueError("Pn and En must be one-dimensional arrays.")
+    if P.ndim != 1 or PET.ndim != 1:
+        raise ValueError("P and PET must be one-dimensional arrays.")
 
-    if len(Pn) != len(En):
-        raise ValueError("Pn and En must have the same length.")
+    if len(P) != len(PET):
+        raise ValueError("P and PET must have the same length.")
 
-    if len(Pn) == 0:
-        raise ValueError("Pn and En must not be empty.")
+    if len(P) == 0:
+        raise ValueError("P and PET must not be empty.")
 
     if LAMBDA <= 0:
         raise ValueError("LAMBDA must be strictly positive.")
@@ -221,6 +220,8 @@ def simulate_streamflow(params, Q0, Pn, En, S0=None):
 
     if S0 is None:
         S0 = X1 / 2.0
+
+    Pn, En = net_fluxes(P, PET)
 
     Q = _simulate_core(
         MU,
