@@ -72,7 +72,7 @@ Net precipitation (`Pn`) and net evapotranspiration (`En`) are automatically com
 The initial production-store state `S0` is optional and defaults to `X1 / 2`:
 
 ```python
-Qsim = simulate_streamflow(params, Q0, P, PET, S0=100.0)
+Qsim = simulate_streamflow(params, Q0, P, PET)
 ```
 
 The function returns the simulated streamflow time series.
@@ -95,12 +95,6 @@ Compute percolation from the production store:
 
 ```python
 Perc = percolation(Pn, En, X1)
-```
-
-The initial production-store state can also be specified:
-
-```python
-Perc = percolation(Pn, En, X1, S0=100.0)
 ```
 
 ## User-defined calibration
@@ -160,7 +154,7 @@ for guess in initial_guesses:
         objective,
         guess,
         args=(P_cal, PET_cal, Q_cal, n_warmup),
-        method="Powell",
+        method="Nelder-Mead",
         bounds=bounds,
         options={"maxiter": 2500, "disp": False}
     )
@@ -189,10 +183,6 @@ Qsim_all = simulate_streamflow(best_params, Q_cal[0], P_all, PET_all)
 
 Qsim_val = Qsim_all[len(Q_cal):]
 ```
-
-This approach ensures that the validation simulation follows the calibration period without restarting the model states.
-
-**Note:** The package returns simulated streamflow only. The final internal production-store state is not returned or retained between separate simulation calls.
 
 ## Performance evaluation
 
@@ -230,20 +220,6 @@ All metrics use the signature `metric(obs, sim)` and exclude pairs containing Na
 ## Examples
 
 See `examples/A_CAMELS_FR_basin.py` for an example of single-basin model simulation and evaluation.
-
-## Development
-
-Install the package in development mode:
-
-```bash
-pip install -e ".[dev]"
-```
-
-Run the tests:
-
-```bash
-pytest
-```
 
 ## License
 
