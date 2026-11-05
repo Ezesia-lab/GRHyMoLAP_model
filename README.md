@@ -58,7 +58,7 @@ where:
 
 - `MU` and `LAMBDA` control streamflow recession dynamics.
 - `X1` represents the production-store capacity parameter.
-- `gamma` controls the contribution of net precipitation and percolation to streamflow generation.
+- `gamma` controls the contribution of the runoff generation term.
 
 The inputs are:
 
