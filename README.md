@@ -171,9 +171,7 @@ This example illustrates one possible calibration strategy. Users are free to ch
 
 ## Validation and continuous simulation
 
-After calibration, the optimized parameters can be used for validation.
-
-To preserve the evolution of the internal production-store state between calibration and validation periods, both periods can be simulated together:
+After calibration, the optimized parameters are then used for validation.
 
 ```python
 P_all = np.concatenate([P_cal, P_val])
